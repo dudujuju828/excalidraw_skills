@@ -94,7 +94,7 @@ interface DummyPlan {
 function insertDummies(spec: DiagramSpec, rank: Map<string, number>): DummyPlan {
   const lnodes = new Map<string, LNode>();
   for (const n of spec.nodes) {
-    const size = nodeSize(n.label, n.shape ?? "rectangle");
+    const size = nodeSize(n.label, n.shape ?? "rectangle", spec.font);
     lnodes.set(n.id, { key: n.id, rank: rank.get(n.id)!, ...size });
   }
 

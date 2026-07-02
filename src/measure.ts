@@ -1,11 +1,18 @@
-import type { Shape } from "./types.js";
+import type { Font, Shape } from "./types.js";
 
 export const FONT_SIZE = 20;
 export const EDGE_FONT_SIZE = 16;
 export const LINE_HEIGHT = 1.25;
 
-// Virgil (Excalidraw's hand-drawn font) averages roughly 0.6em per glyph.
-const CHAR_WIDTH_EM = 0.6;
+export const DEFAULT_FONT: Font = "normal";
+
+// Average glyph width per font, in em. Slightly generous on purpose so
+// container text never wraps.
+const CHAR_WIDTH_EM: Record<Font, number> = {
+  normal: 0.55, // Nunito
+  "hand-drawn": 0.6, // Excalifont
+  code: 0.62, // Comic Shanns (monospace)
+};
 
 export interface TextSize {
   width: number;
@@ -13,11 +20,15 @@ export interface TextSize {
   lines: string[];
 }
 
-export function measureText(text: string, fontSize = FONT_SIZE): TextSize {
+export function measureText(
+  text: string,
+  fontSize = FONT_SIZE,
+  font: Font = DEFAULT_FONT,
+): TextSize {
   const lines = text.split("\n");
   const longest = Math.max(...lines.map((l) => l.length), 1);
   return {
-    width: Math.ceil(longest * fontSize * CHAR_WIDTH_EM),
+    width: Math.ceil(longest * fontSize * CHAR_WIDTH_EM[font]),
     height: Math.ceil(lines.length * fontSize * LINE_HEIGHT),
     lines,
   };
@@ -27,8 +38,12 @@ export function measureText(text: string, fontSize = FONT_SIZE): TextSize {
  * Container size for a node label. Ellipses and diamonds inscribe the
  * text box, so they need extra room relative to a rectangle.
  */
-export function nodeSize(label: string, shape: Shape): { width: number; height: number } {
-  const t = measureText(label);
+export function nodeSize(
+  label: string,
+  shape: Shape,
+  font: Font = DEFAULT_FONT,
+): { width: number; height: number } {
+  const t = measureText(label, FONT_SIZE, font);
   let width: number;
   let height: number;
   switch (shape) {

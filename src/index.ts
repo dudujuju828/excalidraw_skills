@@ -5,7 +5,19 @@ import { z } from "zod";
 import { buildDiagram } from "./diagram.js";
 import { toExcalidrawMarkdown } from "./markdown.js";
 import { resolveVaultPath, writeDiagram } from "./vault.js";
-import type { DiagramSpec } from "./types.js";
+import type { DiagramSpec, Font } from "./types.js";
+
+const FONTS = ["normal", "hand-drawn", "code"] as const;
+
+/** Server-wide default font, from EXCALIDRAW_FONT (default "normal"). */
+function defaultFont(): Font {
+  const env = process.env.EXCALIDRAW_FONT;
+  if (!env) return "normal";
+  if ((FONTS as readonly string[]).includes(env)) return env as Font;
+  throw new Error(
+    `Invalid EXCALIDRAW_FONT "${env}"; expected one of: ${FONTS.join(", ")}`,
+  );
+}
 
 const server = new McpServer({
   name: "excalidraw-skills",
@@ -61,14 +73,25 @@ server.registerTool(
         .enum(["down", "right"])
         .optional()
         .describe("Main flow direction of the layout (default: down)"),
+      font: z
+        .enum(FONTS)
+        .optional()
+        .describe(
+          "Label font: normal (clean sans-serif, default), hand-drawn (Excalidraw's sketchy look), or code (monospace)",
+        ),
       nodes: z.array(nodeSchema).min(1),
       edges: z.array(edgeSchema).optional(),
     },
   },
-  async ({ name, folder, direction, nodes, edges }) => {
+  async ({ name, folder, direction, font, nodes, edges }) => {
     try {
       const vault = resolveVaultPath();
-      const spec: DiagramSpec = { nodes, edges: edges ?? [], direction };
+      const spec: DiagramSpec = {
+        nodes,
+        edges: edges ?? [],
+        direction,
+        font: font ?? defaultFont(),
+      };
       const built = buildDiagram(spec);
       const markdown = toExcalidrawMarkdown(built);
       const relPath = await writeDiagram(

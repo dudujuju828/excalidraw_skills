@@ -47,6 +47,7 @@ Configuration:
 
 - `EXCALIDRAW_VAULT_PATH` (or `OBSIDIAN_VAULT_PATH`, or `--vault=<path>` arg) — vault root, **required**
 - `EXCALIDRAW_FOLDER` — default vault folder for new diagrams (default: `Excalidraw`)
+- `EXCALIDRAW_FONT` — default label font: `normal` (clean sans-serif, default), `hand-drawn`, or `code`
 
 ## Tool: `create_diagram`
 
@@ -68,6 +69,7 @@ Configuration:
 - `shape`: `rectangle` (default) | `ellipse` | `diamond`
 - `color`: `default` | `red` | `green` | `blue` | `yellow` | `violet` | `orange` (Excalidraw's standard palette)
 - `style`: `solid` (default) | `dashed` | `dotted`
+- `font` (top-level, optional): `normal` (default) | `hand-drawn` | `code`
 
 Existing files are never overwritten — a numeric suffix is added instead.
 

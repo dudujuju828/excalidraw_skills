@@ -11,6 +11,8 @@ export type Color =
 
 export type Direction = "down" | "right";
 
+export type Font = "normal" | "hand-drawn" | "code";
+
 export type EdgeStyle = "solid" | "dashed" | "dotted";
 
 export interface NodeSpec {
@@ -31,6 +33,7 @@ export interface DiagramSpec {
   nodes: NodeSpec[];
   edges: EdgeSpec[];
   direction?: Direction;
+  font?: Font;
 }
 
 export interface Box {

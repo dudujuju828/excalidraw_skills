@@ -45,7 +45,7 @@ export function buildDiagram(spec: DiagramSpec): BuiltDiagram {
     const box = boxes.get(node.id)!;
     const el = shapeElement(shape, box, node.color ?? "default");
     shapes.push(el);
-    texts.push(boundText(node.label, el));
+    texts.push(boundText(node.label, el, spec.font));
     byId.set(node.id, { el, box, shape });
   }
 
@@ -58,7 +58,7 @@ export function buildDiagram(spec: DiagramSpec): BuiltDiagram {
       waypoints.get(i) ?? [],
     );
     arrows.push(arrow);
-    if (edge.label) arrowTexts.push(labelForArrow(edge.label, arrow));
+    if (edge.label) arrowTexts.push(labelForArrow(edge.label, arrow, spec.font));
   });
 
   // z-order: shapes, node labels, then arrows (and their labels) on top.

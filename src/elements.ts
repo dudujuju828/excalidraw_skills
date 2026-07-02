@@ -1,5 +1,6 @@
 import { makeId, randomSeed } from "./id.js";
 import {
+  DEFAULT_FONT,
   EDGE_FONT_SIZE,
   FONT_SIZE,
   LINE_HEIGHT,
@@ -10,8 +11,17 @@ import type {
   Color,
   EdgeStyle,
   ExcalidrawElement,
+  Font,
   Shape,
 } from "./types.js";
+
+// Excalidraw's built-in font families ("normal" and "code" are what the
+// current picker calls Nunito and Comic Shanns).
+const FONT_CODES: Record<Font, number> = {
+  "hand-drawn": 5, // Excalifont
+  normal: 6, // Nunito
+  code: 8, // Comic Shanns
+};
 
 // Excalidraw's standard palette (open-color): dark stroke, light fill.
 const COLORS: Record<Color, { stroke: string; bg: string }> = {
@@ -69,9 +79,10 @@ export function shapeElement(shape: Shape, box: Box, color: Color): ExcalidrawEl
 export function boundText(
   text: string,
   container: ExcalidrawElement,
+  font: Font = DEFAULT_FONT,
   fontSize: number = FONT_SIZE,
 ): ExcalidrawElement {
-  const size = measureText(text, fontSize);
+  const size = measureText(text, fontSize, font);
   const cx = (container.x as number) + (container.width as number) / 2;
   const cy = (container.y as number) + (container.height as number) / 2;
   const el = base("text", {
@@ -85,7 +96,7 @@ export function boundText(
     rawText: text,
     originalText: text,
     fontSize,
-    fontFamily: 1,
+    fontFamily: FONT_CODES[font],
     textAlign: "center",
     verticalAlign: "middle",
     containerId: container.id,
@@ -202,6 +213,10 @@ export function arrowElement(
   return el;
 }
 
-export function labelForArrow(text: string, arrow: ExcalidrawElement): ExcalidrawElement {
-  return boundText(text, arrow, EDGE_FONT_SIZE);
+export function labelForArrow(
+  text: string,
+  arrow: ExcalidrawElement,
+  font: Font = DEFAULT_FONT,
+): ExcalidrawElement {
+  return boundText(text, arrow, font, EDGE_FONT_SIZE);
 }
