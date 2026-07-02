@@ -156,16 +156,32 @@ function pullToward(
  * Arrow between two shapes, bound on both ends so Excalidraw keeps it
  * attached when nodes are moved. Long edges pass `waypoints` (from the
  * layout's dummy nodes) and are drawn as a curve through them instead of
- * a straight diagonal. Mutates both shapes' boundElements.
+ * a straight diagonal. When several straight arrows connect the same pair
+ * of nodes (a request/response round trip), `laneOffset` shifts each one
+ * perpendicular to the connecting line so they don't draw on top of each
+ * other. Mutates both shapes' boundElements.
  */
 export function arrowElement(
   from: { el: ExcalidrawElement; box: Box; shape: Shape },
   to: { el: ExcalidrawElement; box: Box; shape: Shape },
   style: EdgeStyle,
   waypoints: Array<{ x: number; y: number }> = [],
+  laneOffset = 0,
 ): ExcalidrawElement {
-  const firstTarget = waypoints[0] ?? center(to.box);
-  const lastTarget = waypoints[waypoints.length - 1] ?? center(from.box);
+  let firstTarget = waypoints[0] ?? center(to.box);
+  let lastTarget = waypoints[waypoints.length - 1] ?? center(from.box);
+
+  if (laneOffset !== 0 && waypoints.length === 0) {
+    // Aim at points shifted sideways from the true centers, so the border
+    // exit/entry points of parallel arrows spread out along the borders.
+    const c1 = center(from.box);
+    const c2 = center(to.box);
+    const len = Math.hypot(c2.x - c1.x, c2.y - c1.y) || 1;
+    const px = (-(c2.y - c1.y) / len) * laneOffset;
+    const py = ((c2.x - c1.x) / len) * laneOffset;
+    firstTarget = { x: c2.x + px, y: c2.y + py };
+    lastTarget = { x: c1.x + px, y: c1.y + py };
+  }
 
   // Leave the border aiming at the first bend, arrive aiming from the
   // last one, with ARROW_GAP px of air on both ends.

@@ -8,8 +8,18 @@ const SWEEPS = 8;
 
 export interface LayoutResult {
   boxes: Map<string, Box>;
-  /** Bend points per edge index, for edges routed through intermediate rows. */
+  /**
+   * Bend points per edge index, for edges routed through intermediate rows.
+   * Always listed in the edge's original from->to direction, including for
+   * edges that were reversed internally to break cycles.
+   */
   waypoints: Map<number, Array<{ x: number; y: number }>>;
+}
+
+/** An edge as used internally by the layout; may be a reversed original. */
+interface WorkEdge {
+  from: string;
+  to: string;
 }
 
 /** A real node or a dummy standing in for a long edge crossing a row. */
@@ -30,38 +40,83 @@ interface Segment {
 
 /**
  * Layered (Sugiyama-style) layout:
- *   1. rank by longest path, then pull sources down next to their
+ *   1. break cycles by reversing a small set of "back" edges for the
+ *      duration of the layout (they still render in their original
+ *      direction), so round trips route like everything else;
+ *   2. rank by longest path, then pull sources down next to their
  *      earliest consumer so they don't trail edges across the diagram;
- *   2. split edges spanning >1 rank with dummy nodes, so the ordering
+ *   3. split edges spanning >1 rank with dummy nodes, so the ordering
  *      step reserves a corridor for them between real nodes;
- *   3. minimize crossings with alternating down/up barycenter sweeps,
+ *   4. minimize crossings with alternating down/up barycenter sweeps,
  *      keeping the best ordering seen (fewest crossings, straightest
  *      corridors);
- *   4. place ranks as centered rows ("down") or columns ("right"). Each
+ *   5. place ranks as centered rows ("down") or columns ("right"). Each
  *      dummy becomes two bend points — where its edge enters and leaves
  *      the row band — so edges run straight through rows and only drift
  *      sideways in the empty gaps between them, where no boxes live.
  */
 export function layoutDiagram(spec: DiagramSpec): LayoutResult {
-  const rank = computeRanks(spec);
-  const { lnodes, segments, chains } = insertDummies(spec, rank);
+  const { edges, reversed } = orientAcyclic(spec);
+  const rank = computeRanks(spec.nodes, edges);
+  const { lnodes, segments, chains } = insertDummies(spec, edges, rank);
   // Full node-to-node paths of the routed edges, for bend scoring.
   const paths = [...chains.entries()].map(([edgeIdx, chain]) => [
-    spec.edges[edgeIdx].from,
+    edges[edgeIdx].from,
     ...chain,
-    spec.edges[edgeIdx].to,
+    edges[edgeIdx].to,
   ]);
   const layers = orderLayers(lnodes, segments, paths);
-  return assignCoordinates(spec, layers, chains);
+  return assignCoordinates(spec, layers, chains, reversed);
 }
 
-function computeRanks(spec: DiagramSpec): Map<string, number> {
-  // Longest-path ranking, Bellman-Ford style. The iteration cap makes
-  // cycles terminate instead of looping forever.
-  const rank = new Map<string, number>(spec.nodes.map((n) => [n.id, 0]));
-  for (let iter = 0; iter < spec.nodes.length; iter++) {
+/**
+ * DFS-based greedy feedback set: any edge that closes a cycle is flipped
+ * for layout purposes, so the working graph is a DAG and every edge gets
+ * proper ranking and corridor routing. Reply/return edges in a request-
+ * response flow are the typical case.
+ */
+function orientAcyclic(spec: DiagramSpec): {
+  edges: WorkEdge[];
+  reversed: Set<number>;
+} {
+  const adjacency = new Map<string, Array<{ to: string; idx: number }>>();
+  for (const n of spec.nodes) adjacency.set(n.id, []);
+  spec.edges.forEach((e, idx) => adjacency.get(e.from)!.push({ to: e.to, idx }));
+
+  const reversed = new Set<number>();
+  const UNSEEN = 0, ON_STACK = 1, DONE = 2;
+  const state = new Map<string, number>(spec.nodes.map((n) => [n.id, UNSEEN]));
+
+  const visit = (id: string): void => {
+    state.set(id, ON_STACK);
+    for (const { to, idx } of adjacency.get(id)!) {
+      if (state.get(to) === ON_STACK) reversed.add(idx);
+      else if (state.get(to) === UNSEEN) visit(to);
+    }
+    state.set(id, DONE);
+  };
+  // Start from natural sources so the dominant flow keeps its direction;
+  // in a fully cyclic graph, fall back to spec order.
+  const hasIncoming = new Set(spec.edges.map((e) => e.to));
+  for (const n of spec.nodes) if (!hasIncoming.has(n.id)) visit(n.id);
+  for (const n of spec.nodes) if (state.get(n.id) === UNSEEN) visit(n.id);
+
+  const edges = spec.edges.map((e, i) =>
+    reversed.has(i) ? { from: e.to, to: e.from } : { from: e.from, to: e.to },
+  );
+  return { edges, reversed };
+}
+
+function computeRanks(
+  nodes: DiagramSpec["nodes"],
+  edges: WorkEdge[],
+): Map<string, number> {
+  // Longest-path ranking. The graph is a DAG after orientAcyclic, so this
+  // converges; the iteration cap is a pure safety net.
+  const rank = new Map<string, number>(nodes.map((n) => [n.id, 0]));
+  for (let iter = 0; iter < nodes.length; iter++) {
     let changed = false;
-    for (const e of spec.edges) {
+    for (const e of edges) {
       const candidate = rank.get(e.from)! + 1;
       if (rank.get(e.to)! < candidate) {
         rank.set(e.to, candidate);
@@ -74,10 +129,10 @@ function computeRanks(spec: DiagramSpec): Map<string, number> {
   // Longest-path ranking leaves every source in row 0 even when its first
   // consumer is far below, which trails a long edge across every row in
   // between. Pull each source down to just above its earliest consumer.
-  const hasIncoming = new Set(spec.edges.map((e) => e.to));
-  for (const n of spec.nodes) {
+  const hasIncoming = new Set(edges.map((e) => e.to));
+  for (const n of nodes) {
     if (hasIncoming.has(n.id)) continue;
-    const succRanks = spec.edges
+    const succRanks = edges
       .filter((e) => e.from === n.id)
       .map((e) => rank.get(e.to)!);
     if (succRanks.length) rank.set(n.id, Math.min(...succRanks) - 1);
@@ -91,7 +146,11 @@ interface DummyPlan {
   chains: Map<number, string[]>;
 }
 
-function insertDummies(spec: DiagramSpec, rank: Map<string, number>): DummyPlan {
+function insertDummies(
+  spec: DiagramSpec,
+  edges: WorkEdge[],
+  rank: Map<string, number>,
+): DummyPlan {
   const lnodes = new Map<string, LNode>();
   for (const n of spec.nodes) {
     const size = nodeSize(n.label, n.shape ?? "rectangle", spec.font);
@@ -100,11 +159,10 @@ function insertDummies(spec: DiagramSpec, rank: Map<string, number>): DummyPlan 
 
   const segments: Segment[] = [];
   const chains = new Map<number, string[]>();
-  spec.edges.forEach((e, i) => {
+  edges.forEach((e, i) => {
     const rFrom = rank.get(e.from)!;
     const rTo = rank.get(e.to)!;
-    // Flat and backward edges (only possible with cycles) are drawn as
-    // straight arrows and stay out of the ordering.
+    // Cannot happen on the acyclic working graph; pure safety net.
     if (rTo - rFrom < 1) return;
 
     let prev = e.from;
@@ -223,6 +281,7 @@ function assignCoordinates(
   spec: DiagramSpec,
   layers: LNode[][],
   chains: Map<number, string[]>,
+  reversedEdges: Set<number>,
 ): LayoutResult {
   const down = (spec.direction ?? "down") === "down";
   const boxes = new Map<string, Box>();
@@ -272,7 +331,11 @@ function assignCoordinates(
 
   const waypoints = new Map<number, Array<{ x: number; y: number }>>();
   for (const [edgeIdx, chain] of chains) {
-    waypoints.set(edgeIdx, chain.flatMap((key) => bends.get(key)!));
+    const points = chain.flatMap((key) => bends.get(key)!);
+    // Chains of layout-reversed edges run opposite to the drawn arrow;
+    // flip them back so waypoints follow the original from->to direction.
+    if (reversedEdges.has(edgeIdx)) points.reverse();
+    waypoints.set(edgeIdx, points);
   }
   return { boxes, waypoints };
 }
