@@ -121,5 +121,10 @@ server.registerTool(
   },
 );
 
-const transport = new StdioServerTransport();
-await server.connect(transport);
+if (process.argv[2] === "setup") {
+  const { runSetup } = await import("./setup.js");
+  await runSetup();
+} else {
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+}
