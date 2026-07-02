@@ -86,6 +86,70 @@ for (const a of shapes) {
   }
 }
 
+// -- readability: count arrow-arrow crossings and arrow-box overlaps ------
+function properCross(p1, p2, p3, p4) {
+  const side = (a, b, c) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+  const d1 = side(p3, p4, p1);
+  const d2 = side(p3, p4, p2);
+  const d3 = side(p1, p2, p3);
+  const d4 = side(p1, p2, p4);
+  return d1 * d2 < 0 && d3 * d4 < 0;
+}
+
+const polylines = arrows.map((a) => ({
+  arrow: a,
+  bound: new Set([a.startBinding.elementId, a.endBinding.elementId]),
+  pts: a.points.map(([px, py]) => [a.x + px, a.y + py]),
+}));
+
+let crossings = 0;
+for (let i = 0; i < polylines.length; i++) {
+  for (let j = i + 1; j < polylines.length; j++) {
+    const a = polylines[i];
+    const b = polylines[j];
+    // Arrows sharing a node meet near its border by design; skip those.
+    if ([...a.bound].some((id) => b.bound.has(id))) continue;
+    let pairCrosses = false;
+    for (let s = 0; s + 1 < a.pts.length; s++) {
+      for (let t = 0; t + 1 < b.pts.length; t++) {
+        if (properCross(a.pts[s], a.pts[s + 1], b.pts[t], b.pts[t + 1])) {
+          pairCrosses = true;
+        }
+      }
+    }
+    if (pairCrosses) crossings++;
+  }
+}
+
+let boxHits = 0;
+for (const { arrow, bound, pts } of polylines) {
+  for (const shape of shapes) {
+    if (bound.has(shape.id)) continue;
+    const corners = [
+      [shape.x, shape.y],
+      [shape.x + shape.width, shape.y],
+      [shape.x + shape.width, shape.y + shape.height],
+      [shape.x, shape.y + shape.height],
+    ];
+    const inside = ([px, py]) =>
+      px > shape.x && px < shape.x + shape.width && py > shape.y && py < shape.y + shape.height;
+    for (let s = 0; s + 1 < pts.length; s++) {
+      const hitsEdge = corners.some((c, k) =>
+        properCross(pts[s], pts[s + 1], c, corners[(k + 1) % 4]),
+      );
+      if (hitsEdge || inside(pts[s]) || inside(pts[s + 1])) {
+        boxHits++;
+        break;
+      }
+    }
+  }
+}
+
+console.log(`crossings between unrelated arrows: ${crossings}`);
+console.log(`arrows cutting through foreign boxes: ${boxHits}`);
+assert.ok(crossings <= 1, `too many arrow crossings: ${crossings}`);
+assert.equal(boxHits, 0, "no arrow may pass through a box it is not bound to");
+
 const markdown = toExcalidrawMarkdown(built);
 assert.match(markdown, /excalidraw-plugin: parsed/);
 const jsonBlock = markdown.match(/```json\n([\s\S]*?)\n```/);
