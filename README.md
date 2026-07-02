@@ -8,7 +8,7 @@ Say *"Draw me on excalidraw a workflow of RSA encryption"* to your agent, and a 
 
 LLMs are good at naming the nodes and edges of a concept, and bad at the geometry and bookkeeping of the Excalidraw format: arrow bindings (`startBinding`/`endBinding` + matching `boundElements` on both shapes), container-bound text labels, consistent ids/seeds, and non-overlapping coordinates. This server accepts a high-level graph spec and handles all of that:
 
-- **Auto-layout** — layered top-down (or left-right) layout with a barycenter pass to reduce arrow crossings
+- **Auto-layout** — layered (Sugiyama-style) top-down or left-right layout: sources are pulled next to their first consumer, long edges are routed through reserved corridors between nodes (never through boxes), and crossings are minimized with iterative barycenter sweeps
 - **Proper bindings** — arrows stay attached when you move nodes in Obsidian
 - **Contained labels** — text is bound inside shapes, edge labels bound to arrows
 - **Vault format** — writes the `excalidraw-plugin: parsed` markdown format with a `## Text Elements` section, so labels are linkable block references
