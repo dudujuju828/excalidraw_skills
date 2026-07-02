@@ -25,12 +25,15 @@ export function validateSpec(spec: DiagramSpec): void {
         );
       }
     }
+    if (e.from === e.to) {
+      throw new Error(`Self-loop on "${e.from}" is not supported yet.`);
+    }
   }
 }
 
 export function buildDiagram(spec: DiagramSpec): BuiltDiagram {
   validateSpec(spec);
-  const boxes = layoutDiagram(spec);
+  const { boxes, waypoints } = layoutDiagram(spec);
 
   const shapes: ExcalidrawElement[] = [];
   const texts: ExcalidrawElement[] = [];
@@ -47,15 +50,16 @@ export function buildDiagram(spec: DiagramSpec): BuiltDiagram {
   }
 
   const arrowTexts: ExcalidrawElement[] = [];
-  for (const edge of spec.edges) {
+  spec.edges.forEach((edge, i) => {
     const arrow = arrowElement(
       byId.get(edge.from)!,
       byId.get(edge.to)!,
       edge.style ?? "solid",
+      waypoints.get(i) ?? [],
     );
     arrows.push(arrow);
     if (edge.label) arrowTexts.push(labelForArrow(edge.label, arrow));
-  }
+  });
 
   // z-order: shapes, node labels, then arrows (and their labels) on top.
   const elements = [...shapes, ...texts, ...arrows, ...arrowTexts];

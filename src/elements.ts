@@ -129,38 +129,62 @@ function borderPoint(box: Box, shape: Shape, target: { x: number; y: number }) {
   return { x: c.x + dx * t, y: c.y + dy * t };
 }
 
+function pullToward(
+  p: { x: number; y: number },
+  target: { x: number; y: number },
+  distance: number,
+): { x: number; y: number } {
+  const len = Math.hypot(target.x - p.x, target.y - p.y) || 1;
+  return {
+    x: p.x + ((target.x - p.x) / len) * distance,
+    y: p.y + ((target.y - p.y) / len) * distance,
+  };
+}
+
 /**
  * Arrow between two shapes, bound on both ends so Excalidraw keeps it
- * attached when nodes are moved. Mutates both shapes' boundElements.
+ * attached when nodes are moved. Long edges pass `waypoints` (from the
+ * layout's dummy nodes) and are drawn as a curve through them instead of
+ * a straight diagonal. Mutates both shapes' boundElements.
  */
 export function arrowElement(
   from: { el: ExcalidrawElement; box: Box; shape: Shape },
   to: { el: ExcalidrawElement; box: Box; shape: Shape },
   style: EdgeStyle,
+  waypoints: Array<{ x: number; y: number }> = [],
 ): ExcalidrawElement {
-  let start = borderPoint(from.box, from.shape, center(to.box));
-  let end = borderPoint(to.box, to.shape, center(from.box));
+  const firstTarget = waypoints[0] ?? center(to.box);
+  const lastTarget = waypoints[waypoints.length - 1] ?? center(from.box);
 
-  // Pull both endpoints ARROW_GAP px off the borders.
-  const len = Math.hypot(end.x - start.x, end.y - start.y) || 1;
-  const ux = (end.x - start.x) / len;
-  const uy = (end.y - start.y) / len;
-  start = { x: start.x + ux * ARROW_GAP, y: start.y + uy * ARROW_GAP };
-  end = { x: end.x - ux * ARROW_GAP, y: end.y - uy * ARROW_GAP };
+  // Leave the border aiming at the first bend, arrive aiming from the
+  // last one, with ARROW_GAP px of air on both ends.
+  const start = pullToward(
+    borderPoint(from.box, from.shape, firstTarget),
+    firstTarget,
+    ARROW_GAP,
+  );
+  const end = pullToward(
+    borderPoint(to.box, to.shape, lastTarget),
+    lastTarget,
+    ARROW_GAP,
+  );
 
+  const points = [start, ...waypoints, end].map((p) => [
+    p.x - start.x,
+    p.y - start.y,
+  ]);
+  const xs = points.map((p) => p[0]);
+  const ys = points.map((p) => p[1]);
   const el = base("arrow", {
     x: start.x,
     y: start.y,
-    width: Math.abs(end.x - start.x),
-    height: Math.abs(end.y - start.y),
+    width: Math.max(...xs) - Math.min(...xs),
+    height: Math.max(...ys) - Math.min(...ys),
   });
   Object.assign(el, {
     strokeStyle: style,
     roundness: { type: 2 },
-    points: [
-      [0, 0],
-      [end.x - start.x, end.y - start.y],
-    ],
+    points,
     lastCommittedPoint: null,
     startBinding: { elementId: from.el.id, focus: 0, gap: ARROW_GAP },
     endBinding: { elementId: to.el.id, focus: 0, gap: ARROW_GAP },
