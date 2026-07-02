@@ -15,21 +15,36 @@ LLMs are good at naming the nodes and edges of a concept, and bad at the geometr
 
 ## Install
 
+### Quick start (recommended)
+
+```sh
+npx -y github:dudujuju828/excalidraw_skills setup
+```
+
+The interactive wizard finds your Obsidian vaults (from Obsidian's own config), checks that the Excalidraw plugin is installed, registers the server with Claude Code and/or Claude Desktop for you, and finishes by writing a test diagram into the vault. Re-running it is safe — it replaces the existing registration.
+
+### One-liner (Claude Code, no clone)
+
+```sh
+claude mcp add excalidraw -e EXCALIDRAW_VAULT_PATH="/path/to/your/vault" -- npx -y github:dudujuju828/excalidraw_skills
+```
+
+### Manual (from a clone)
+
 ```sh
 git clone https://github.com/dudujuju828/excalidraw_skills
 cd excalidraw_skills
-npm install && npm run build
+npm install
+npm run setup   # same wizard as above
 ```
 
-### Claude Code
+Or skip the wizard and register by hand — Claude Code:
 
 ```sh
-claude mcp add --scope user excalidraw \
-  --env EXCALIDRAW_VAULT_PATH="C:/path/to/your/vault" \
-  -- node /path/to/excalidraw_skills/dist/index.js
+claude mcp add excalidraw --scope user -e EXCALIDRAW_VAULT_PATH="/path/to/your/vault" -- node /path/to/excalidraw_skills/dist/index.js
 ```
 
-### Claude Desktop / other MCP clients
+Claude Desktop / other MCP clients:
 
 ```json
 {
@@ -37,7 +52,7 @@ claude mcp add --scope user excalidraw \
     "excalidraw": {
       "command": "node",
       "args": ["/path/to/excalidraw_skills/dist/index.js"],
-      "env": { "EXCALIDRAW_VAULT_PATH": "C:/path/to/your/vault" }
+      "env": { "EXCALIDRAW_VAULT_PATH": "/path/to/your/vault" }
     }
   }
 }
