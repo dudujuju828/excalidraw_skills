@@ -56,8 +56,9 @@ server.registerTool(
     description:
       "Draw a flowchart/graph as an Obsidian Excalidraw note. Describe the diagram " +
       "as nodes and directed edges; layout, arrow binding and the Excalidraw file " +
-      "format are handled automatically. Returns the vault-relative path of the " +
-      "created note.",
+      "format are handled automatically. Cycles are fine: request/response round " +
+      "trips get separate parallel lanes and reply edges are routed around the " +
+      "main flow. Returns the vault-relative path of the created note.",
     inputSchema: {
       name: z
         .string()
