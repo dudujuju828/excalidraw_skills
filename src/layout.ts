@@ -28,6 +28,18 @@ export function layoutDiagram(spec: DiagramSpec): Map<string, Box> {
     if (!changed) break;
   }
 
+  // Longest-path ranking leaves every source in row 0 even when its first
+  // consumer is far below, which trails a long edge across every row in
+  // between. Pull each source down to just above its earliest consumer.
+  const hasIncoming = new Set(spec.edges.map((e) => e.to));
+  for (const n of nodes) {
+    if (hasIncoming.has(n.id)) continue;
+    const succRanks = spec.edges
+      .filter((e) => e.from === n.id)
+      .map((e) => rank.get(e.to)!);
+    if (succRanks.length) rank.set(n.id, Math.min(...succRanks) - 1);
+  }
+
   const maxRank = Math.max(...[...rank.values()], 0);
   const rows: NodeSpec[][] = Array.from({ length: maxRank + 1 }, () => []);
   for (const n of nodes) rows[rank.get(n.id)!].push(n);
