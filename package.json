@@ -3,6 +3,25 @@
   "version": "0.3.0",
   "description": "MCP server that lets AI agents draw diagrams as Obsidian Excalidraw notes",
   "license": "MIT",
+  "author": "dudujuju828",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dudujuju828/excalidraw_skills.git"
+  },
+  "homepage": "https://github.com/dudujuju828/excalidraw_skills#readme",
+  "bugs": "https://github.com/dudujuju828/excalidraw_skills/issues",
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "excalidraw",
+    "obsidian",
+    "diagram",
+    "flowchart",
+    "ai-agent"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "type": "module",
   "bin": {
     "excalidraw-skills": "dist/index.js"

@@ -18,7 +18,7 @@ LLMs are good at naming the nodes and edges of a concept, and bad at the geometr
 ### Quick start (recommended)
 
 ```sh
-npx -y github:dudujuju828/excalidraw_skills setup
+npx -y excalidraw-skills setup
 ```
 
 The interactive wizard finds your Obsidian vaults (from Obsidian's own config), checks that the Excalidraw plugin is installed, registers the server with Claude Code and/or Claude Desktop for you, and finishes by writing a test diagram into the vault. Re-running it is safe — it replaces the existing registration.
@@ -26,8 +26,10 @@ The interactive wizard finds your Obsidian vaults (from Obsidian's own config), 
 ### One-liner (Claude Code, no clone)
 
 ```sh
-claude mcp add excalidraw -e EXCALIDRAW_VAULT_PATH="/path/to/your/vault" -- npx -y github:dudujuju828/excalidraw_skills
+claude mcp add excalidraw -e EXCALIDRAW_VAULT_PATH="/path/to/your/vault" -- npx -y excalidraw-skills
 ```
+
+(To run the latest unpublished code instead, use `npx -y github:dudujuju828/excalidraw_skills` in either command.)
 
 ### Manual (from a clone)
 

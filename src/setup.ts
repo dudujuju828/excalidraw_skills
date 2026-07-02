@@ -8,7 +8,8 @@ import { buildDiagram } from "./diagram.js";
 import { toExcalidrawMarkdown } from "./markdown.js";
 import { writeDiagram } from "./vault.js";
 
-const REPO = "github:dudujuju828/excalidraw_skills";
+// npm package name; clients re-resolve the server through npx with this.
+const PACKAGE = "excalidraw-skills";
 const SERVER_NAME = "excalidraw";
 
 interface Invocation {
@@ -53,7 +54,7 @@ function knownVaults(): string[] {
 function serverInvocation(): Invocation {
   const self = fileURLToPath(import.meta.url);
   if (self.split(path.sep).includes("_npx")) {
-    return { command: "npx", args: ["-y", REPO] };
+    return { command: "npx", args: ["-y", PACKAGE] };
   }
   return { command: "node", args: [path.join(path.dirname(self), "index.js")] };
 }
